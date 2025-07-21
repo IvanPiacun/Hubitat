@@ -214,3 +214,4 @@ def timeoutSeconds() { return 300 }
 def checkForTimeout() { last = state.lastSensorReport ?: 0 
                         elapsed = (now() - last) / 1000 
                        if (elapsed > timeoutSeconds()) { log.warn "⚠️ No sensor data received in last ${elapsed.toInteger()}s. Check Zigbee link or sensor battery." } else { if (debugLogging) log.debug "✅ Sensor data received within timeout (${elapsed.toInteger()}s)" } }
+
