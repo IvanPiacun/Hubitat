@@ -49,7 +49,7 @@
 */
 
 metadata { 
-    definition(name: "Tuya Zigbee CK-TLSR8656 Temp/Humidity Sensor", namespace: "ivanpiacun.driver", author: "Ivan Piacun & Copilot", importUrl: 'blob:https://github.com/f9271a94-f07f-4221-8894-b0df30e5fcb5') {
+    definition(name: "Tuya Zigbee CK-TLSR8656 Temp/Humidity Sensor", namespace: "ivanpiacun.driver", author: "Ivan Piacun & Copilot", importUrl: 'https://raw.githubusercontent.com/IvanPiacun/Hubitat/Tuya%20Zigbee%20CK-TLSR8656%20Temp-Humidity%20Sensor%20Driver.groovy') {
     capability "TemperatureMeasurement" 
     capability "RelativeHumidityMeasurement" 
     capability "Battery" 
