@@ -1,7 +1,7 @@
 /**
  *  Tuya Zigbee CK-TLSR8656 Temp/Humidity Sensor driver for Hubitat Elevation C8-PRO
  *
- *  Version 1.0.4
+ *  Version 1.0.5
  *
  *	Copyright 2025 Ivan Piacun, BAP Enterprises Ltd (NZ)
  *
@@ -45,10 +45,11 @@
  *  Version 1.0.1  2025-07-18  Synthetic Offset Application on Refresh even if no data arrives. 
  *  Version 1.0.2  2025-07-18  First published version. 
  *  Version 1.0.4  2025-07-19  Added support for fahrenheit configuration. 
+ *  Version 1.0.5  2025-07-21  Added Support for Import.
 */
 
 metadata { 
-    definition(name: "Tuya Zigbee CK-TLSR8656 Temp/Humidity Sensor", namespace: "ivanpiacun.driver", author: "Ivan Piacun & Copilot") {
+    definition(name: "Tuya Zigbee CK-TLSR8656 Temp/Humidity Sensor", namespace: "ivanpiacun.driver", author: "Ivan Piacun & Copilot", importUrl: 'https://raw.githubusercontent.com/IvanPiacun/Hubitat/blob/main/Tuya%20Zigbee%20CK-TLSR8656%20Temp-Humidity%20Sensor%20Driver.groovy') {
     capability "TemperatureMeasurement" 
     capability "RelativeHumidityMeasurement" 
     capability "Battery" 
