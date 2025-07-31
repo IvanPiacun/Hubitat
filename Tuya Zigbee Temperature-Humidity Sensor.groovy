@@ -115,12 +115,14 @@ def diagnoseFingerprintMatch() {
     def manufacturer = device.getDataValue("manufacturer") ?: "UNKNOWN"
     def clustersIn = device.getDataValue("inClusters") ?: "UNKNOWN"
     def endpointId = device.getDataValue("endpointId") ?: "UNKNOWN"
+    def clustersOut = device.getDataValue("outClusters") ?: "UNKNOWN"
 
     def match = getTuyaTempHumidityFingerprints().find { fp ->
         fp.model == model &&
         fp.manufacturer == manufacturer &&
         fp.inClusters == clustersIn &&
-        (fp.endpointId == endpointId || endpointId == "UNKNOWN")
+        (fp.endpointId == endpointId || endpointId == "UNKNOWN") &&
+        fp.outClusters == clustersOut 
     }
 
     if (match) {
