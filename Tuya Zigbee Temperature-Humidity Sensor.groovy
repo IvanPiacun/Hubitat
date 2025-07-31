@@ -129,7 +129,7 @@ def diagnoseFingerprintMatch() {
         log.info "✅ Device matches known fingerprint: ${match.deviceJoinName} (${match.model})"
         state.debugState = "Matched: ${match.model}"
     } else {
-        log.warn "❌ No matching fingerprint found for device → Model: ${model}, Manufacturer: ${manufacturer}, Endpoint: ${endpointId}, InClusters: ${clustersIn}"
+        log.warn "❌ No matching fingerprint found for device → Model: ${model}, Manufacturer: ${manufacturer}, Endpoint: ${endpointId}, InClusters: ${clustersIn}, OutClusters: {clustersOut}"
         state.debugState = "No match"
     }
 }
