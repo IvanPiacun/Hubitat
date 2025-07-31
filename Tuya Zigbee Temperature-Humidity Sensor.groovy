@@ -120,7 +120,7 @@ def diagnoseFingerprintMatch() {
         fp.model == model &&
         fp.manufacturer == manufacturer &&
         fp.inClusters == clustersIn &&
-        fp.endpointId == endpointId
+        (fp.endpointId == endpointId || endpointId == "UNKNOWN")
     }
 
     if (match) {
@@ -157,7 +157,7 @@ private void applySyntheticTempIfNoData(Integer lastKnownRaw) {
     processTemperature(lastKnownRaw)
 }
 def initialize() {
-    log.debug "⚙️ initialize() called"
+    log.trace "⚙️ initialize() called"
     diagnoseFingerprintMatch()
     configure()
 }
