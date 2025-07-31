@@ -124,7 +124,7 @@ def diagnoseFingerprintMatch() {
     }
 
     if (match) {
-        log.trace "✅ Device matches known fingerprint: ${match.deviceJoinName} (${match.model})"
+        log.info "✅ Device matches known fingerprint: ${match.deviceJoinName} (${match.model})"
         state.debugState = "Matched: ${match.model}"
     } else {
         log.warn "❌ No matching fingerprint found for device → Model: ${model}, Manufacturer: ${manufacturer}, Endpoint: ${endpointId}, InClusters: ${clustersIn}"
@@ -164,7 +164,7 @@ def initialize() {
 def uninstalled() {
     unschedule()
     state.clear()
-    log.debug "🚪 uninstalled() → Driver resources released"
+    log.info "🚪 uninstalled() → Driver resources released"
 }
 
 def getFormattedDateTime() {
