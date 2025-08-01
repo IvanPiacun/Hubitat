@@ -1,7 +1,7 @@
 /**
  *  Tuya Zigbee Temperature/Humidity Sensor driver for Hubitat Elevation C8-PRO
  *
- *  Version 1.0.6
+ *  Version 1.0.7
  *
  *	Copyright 2025 Ivan Piacun, BAP Enterprises Ltd (NZ)
  *
@@ -49,14 +49,15 @@
  *  Version 1.0.6  2025-07-31  Rename device driver to a more generalised name from 'Tuya Zigbee CK-TLSR8656 Temp/Humidity SensoR". 
  *                             Added "TS0201"  "_TZ3000_fllyghyj".
  *                             Added Fingerprint matching and Daignostic
+ *  Version 1.0.7  2025-08-02  Surfaced version in attributes 
 */
 import java.text.SimpleDateFormat
 
-static String version() { '1.0.6' }
-static String timeStamp() { '2025/07/31 10:45 PM' }
+static String version() { '1.0.7' }
+static String timeStamp() { '2025/08/02 9:00 AM' }
 
 metadata { 
-    definition(name: "Tuya Zigbee Temperature/Humidity Sensor", namespace: "ivanpiacun.driver", author: "Ivan Piacun & Copilot", importUrl: 'https://raw.githubusercontent.com/IvanPiacun/Hubitat/main/Tuya%20Zigbee%20Temperature-Humidity%20Sensor.groovy') {
+    definition(name: "Tuya Zigbee Temperature/Humidity Sensor", namespace: "ivanpiacun.driver", author: "Ivan Piacun & Copilot", importUrl: 'https://raw.githubusercontent.com/IvanPiacun/Hubitat/main/Tuya%20Zigbee%20TempEerature-Humidity%20Sensor%20Driver.groovy') {
     capability "TemperatureMeasurement" 
     capability "RelativeHumidityMeasurement" 
     capability "Battery" 
@@ -115,21 +116,19 @@ def diagnoseFingerprintMatch() {
     def manufacturer = device.getDataValue("manufacturer") ?: "UNKNOWN"
     def clustersIn = device.getDataValue("inClusters") ?: "UNKNOWN"
     def endpointId = device.getDataValue("endpointId") ?: "UNKNOWN"
-    def clustersOut = device.getDataValue("outClusters") ?: "UNKNOWN"
 
     def match = getTuyaTempHumidityFingerprints().find { fp ->
         fp.model == model &&
         fp.manufacturer == manufacturer &&
         fp.inClusters == clustersIn &&
-        (fp.endpointId == endpointId || endpointId == "UNKNOWN") &&
-        fp.outClusters == clustersOut 
+        fp.endpointId == endpointId
     }
 
     if (match) {
-        log.info "✅ Device matches known fingerprint: ${match.deviceJoinName} (${match.model})"
+        log.trace "✅ Device matches known fingerprint: ${match.deviceJoinName} (${match.model})"
         state.debugState = "Matched: ${match.model}"
     } else {
-        log.warn "❌ No matching fingerprint found for device → Model: ${model}, Manufacturer: ${manufacturer}, Endpoint: ${endpointId}, InClusters: ${clustersIn}, OutClusters: ${clustersOut}"
+        log.warn "❌ No matching fingerprint found for device → Model: ${model}, Manufacturer: ${manufacturer}, Endpoint: ${endpointId}, InClusters: ${clustersIn}"
         state.debugState = "No match"
     }
 }
@@ -159,20 +158,22 @@ private void applySyntheticTempIfNoData(Integer lastKnownRaw) {
     processTemperature(lastKnownRaw)
 }
 def initialize() {
-    log.trace "⚙️ initialize() called"
+    log.debug "⚙️ initialize() called"
     diagnoseFingerprintMatch()
     configure()
 }
 def uninstalled() {
     unschedule()
     state.clear()
-    log.info "🚪 uninstalled() → Driver resources released"
+    log.debug "🚪 uninstalled() → Driver resources released"
 }
 
 def getFormattedDateTime() {
     def formatter = new SimpleDateFormat("yyyy-MM-dd HH:mm")
     return formatter.format(new Date())
 }
+
+def driverVersionAndTimeStamp() { version() + ' ' + timeStamp() }
 
 def parse(String description) { if (debugLogging) log.debug "Parsing: $description" 
                                descMap = zigbee.parseDescriptionAsMap(description)
@@ -230,7 +231,8 @@ def scheduledRefresh() {
 def configure() {
     unschedule()
     runEvery15Minutes("scheduledRefresh")
-
+    state.driverVersion = driverVersionAndTimeStamp()
+ 
     def tempUnit = settings?.tempUnit ?: "Celsius"
     def tempOffsetLabel = "${settings?.tempOffset ?: 0.0}${tempUnit == 'Fahrenheit' ? '°F' : '°C'}"
     def humidityOffsetLabel = "${settings?.humidityOffset ?: 0.0}%"
