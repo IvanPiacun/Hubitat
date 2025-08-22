@@ -183,7 +183,7 @@ state.lastSensorReport = getFormattedDateTime()
 
 switch(descMap.clusterInt) {
     case 0x0402:
-        if (traceLogging && traceCluster == "Temperature (0402)")
+        if (traceLogging && traceCluster == "Temperature (0402)") {
            log.trace "🌡 Handling Temperature Measurement cluster (0402)"
         }
         def rawTemp = Integer.parseInt(descMap.value, 16)
@@ -275,5 +275,6 @@ def timeoutSeconds() { return 300 }
 def checkForTimeout() { last = state.lastSensorReport ?: 0 
                         elapsed = (now() - last) / 1000 
                        if (elapsed > timeoutSeconds()) { log.warn "⚠️ No sensor data received in last ${elapsed.toInteger()}s. Check Zigbee link or sensor battery." } else { if (debugLogging) log.debug "✅ Sensor data received within timeout (${elapsed.toInteger()}s)" } }
+
 
 
