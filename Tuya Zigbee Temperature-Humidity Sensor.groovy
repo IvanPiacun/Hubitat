@@ -1,7 +1,7 @@
 /**
  *  Tuya Zigbee Temperature/Humidity Sensor driver for Hubitat Elevation C8-PRO
  *
- *  Version 1.0.7
+ *  Version 1.0.8
  *
  *	Copyright 2025 Ivan Piacun, BAP Enterprises Ltd (NZ)
  *
@@ -50,11 +50,12 @@
  *                             Added "TS0201"  "_TZ3000_fllyghyj".
  *                             Added Fingerprint matching and Daignostic
  *  Version 1.0.7  2025-08-02  Surfaced version in attributes 
+ *  Version 1.0.8  2025-08-23  Fixed Trace Logging of Temperature 
 */
 import java.text.SimpleDateFormat
 
-static String version() { '1.0.7' }
-static String timeStamp() { '2025/08/02 9:00 AM' }
+static String version() { '1.0.8' }
+static String timeStamp() { '2025/08/23 9:00 AM' }
 
 metadata { 
     definition(name: "Tuya Zigbee Temperature/Humidity Sensor", namespace: "ivanpiacun.driver", author: "Ivan Piacun & Copilot", importUrl: 'https://raw.githubusercontent.com/IvanPiacun/Hubitat/main/Tuya%20Zigbee%20TempEerature-Humidity%20Sensor%20Driver.groovy') {
@@ -182,7 +183,9 @@ state.lastSensorReport = getFormattedDateTime()
 
 switch(descMap.clusterInt) {
     case 0x0402:
-       log.trace "🌡 Handling Temperature Measurement cluster (0402)"
+        if (traceLogging && traceCluster == "Temperature (0402)")
+           log.trace "🌡 Handling Temperature Measurement cluster (0402)"
+        }
         def rawTemp = Integer.parseInt(descMap.value, 16)
         state.lastTempRaw = rawTemp
         processTemperature(rawTemp)
