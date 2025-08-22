@@ -58,7 +58,7 @@ static String version() { '1.0.8' }
 static String timeStamp() { '2025/08/23 9:00 AM' }
 
 metadata { 
-    definition(name: "Tuya Zigbee Temperature/Humidity Sensor", namespace: "ivanpiacun.driver", author: "Ivan Piacun & Copilot", importUrl: 'https://raw.githubusercontent.com/IvanPiacun/Hubitat/main/Tuya%20Zigbee%20TempEerature-Humidity%20Sensor%20Driver.groovy') {
+    definition(name: "Tuya Zigbee Temperature/Humidity Sensor", namespace: "ivanpiacun.driver", author: "Ivan Piacun & Copilot", importUrl: 'https://raw.githubusercontent.com/IvanPiacun/Hubitat/refs/heads/main/Tuya%20Zigbee%20Temperature-Humidity%20Sensor.groovy') {
     capability "TemperatureMeasurement" 
     capability "RelativeHumidityMeasurement" 
     capability "Battery" 
@@ -275,4 +275,5 @@ def timeoutSeconds() { return 300 }
 def checkForTimeout() { last = state.lastSensorReport ?: 0 
                         elapsed = (now() - last) / 1000 
                        if (elapsed > timeoutSeconds()) { log.warn "⚠️ No sensor data received in last ${elapsed.toInteger()}s. Check Zigbee link or sensor battery." } else { if (debugLogging) log.debug "✅ Sensor data received within timeout (${elapsed.toInteger()}s)" } }
+
 
