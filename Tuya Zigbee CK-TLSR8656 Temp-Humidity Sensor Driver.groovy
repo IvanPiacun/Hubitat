@@ -1,7 +1,7 @@
 /**
- *  Tuya Zigbee CK-TLSR8656 Temp/Humidity Sensor driver for Hubitat Elevation C8-PRO
+ *  Tuya Zigbee Temperature/Humidity Sensor driver for Hubitat Elevation C8-PRO
  *
- *  Version 1.0.5
+ *  Version 1.0.8
  *
  *	Copyright 2025 Ivan Piacun, BAP Enterprises Ltd (NZ)
  *
@@ -46,11 +46,19 @@
  *  Version 1.0.2  2025-07-18  First published version. 
  *  Version 1.0.4  2025-07-19  Added support for fahrenheit configuration. 
  *  Version 1.0.5  2025-07-21  Added Import URL. 
- *
+ *  Version 1.0.6  2025-07-31  Rename device driver to a more generalised name from 'Tuya Zigbee CK-TLSR8656 Temp/Humidity SensoR". 
+ *                             Added "TS0201"  "_TZ3000_fllyghyj".
+ *                             Added Fingerprint matching and Daignostic
+ *  Version 1.0.7  2025-08-02  Surfaced version in attributes 
+ *  Version 1.0.8  2025-08-23  Fixed Trace Logging of Temperature 
 */
+import java.text.SimpleDateFormat
+
+static String version() { '1.0.8' }
+static String timeStamp() { '2025/08/23 9:00 AM' }
 
 metadata { 
-    definition(name: "Tuya Zigbee CK-TLSR8656 Temp/Humidity Sensor", namespace: "ivanpiacun.driver", author: "Ivan Piacun & Copilot", importUrl: 'https://raw.githubusercontent.com/IvanPiacun/Hubitat/main/Tuya%20Zigbee%20CK-TLSR8656%20Temp-Humidity%20Sensor%20Driver.groovy') {
+    definition(name: "Tuya Zigbee Temperature/Humidity Sensor", namespace: "ivanpiacun.driver", author: "Ivan Piacun & Copilot", importUrl: 'https://raw.githubusercontent.com/IvanPiacun/Hubitat/main/Tuya%20Zigbee%20TempEerature-Humidity%20Sensor%20Driver.groovy') {
     capability "TemperatureMeasurement" 
     capability "RelativeHumidityMeasurement" 
     capability "Battery" 
@@ -68,7 +76,8 @@ attribute "tempUnitState", "string"
 command "configure"
 command "refresh"
 
-fingerprint profileId:"0104", endpointId:"01", inClusters:"0000,0001,0003,0004,0020,0402,0405,FC11", outClusters:"0019,000A", model:"CK-TLSR8656-SS5-01(7014)", manufacturer:"eWeLink"
+fingerprint profileId:"0104", endpointId:"01", inClusters:"0000,0001,0003,0004,0020,0402,0405,FC11", outClusters:"0019,000A", model:"CK-TLSR8656-SS5-01(7014)", manufacturer:"eWeLink", deviceJoinName: "Tuya Temperature/Humidity Sensor"
+fingerprint profileId:"0104", endpointId:"01", inClusters:"0001,0003,0402,0405,0000", outClusters:"0003,0019,000A",  model: "TS0201", manufacturer: "_TZ3000_fllyghyj", deviceJoinName: "Tuya Temperature/Humidity Sensor"
 
 }
 
@@ -80,6 +89,51 @@ preferences { input name: "debugLogging", type: "bool", title: "Enable debug log
               input name: "humidityOffset", type: "decimal", title: "Humidity offset (%)", defaultValue: 0.0
             }
 }
+
+def getTuyaTempHumidityFingerprints() {
+    return [
+        [
+            profileId: "0104",
+            endpointId: "01",
+            inClusters: "0001,0003,0402,0405,0000",
+            outClusters: "0003,0019,000A",
+            manufacturer: "_TZ3000_fllyghyj",
+            model: "TS0201",
+            deviceJoinName: "Tuya Temperature/Humidity Sensor"
+        ],
+        [
+            profileId: "0104",
+            endpointId: "01",
+            inClusters: "0000,0001,0003,0004,0020,0402,0405,FC11",
+            outClusters: "0019,000A",
+            manufacturer: "eWeLink",
+            model: "CK-TLSR8656-SS5-01(7014)",
+            deviceJoinName: "Tuya Temperature/Humidity Sensor"
+        ]
+    ]
+}
+def diagnoseFingerprintMatch() {
+    def model = device.getDataValue("model") ?: "UNKNOWN"
+    def manufacturer = device.getDataValue("manufacturer") ?: "UNKNOWN"
+    def clustersIn = device.getDataValue("inClusters") ?: "UNKNOWN"
+    def endpointId = device.getDataValue("endpointId") ?: "UNKNOWN"
+
+    def match = getTuyaTempHumidityFingerprints().find { fp ->
+        fp.model == model &&
+        fp.manufacturer == manufacturer &&
+        fp.inClusters == clustersIn &&
+        fp.endpointId == endpointId
+    }
+
+    if (match) {
+        log.trace "✅ Device matches known fingerprint: ${match.deviceJoinName} (${match.model})"
+        state.debugState = "Matched: ${match.model}"
+    } else {
+        log.warn "❌ No matching fingerprint found for device → Model: ${model}, Manufacturer: ${manufacturer}, Endpoint: ${endpointId}, InClusters: ${clustersIn}"
+        state.debugState = "No match"
+    }
+}
+
 private void processTemperature(Integer rawTemp) {
     def offset = (settings?.tempOffset ?: 0)
     def tempC = ((rawTemp / 100.0) + offset) as BigDecimal
@@ -106,6 +160,7 @@ private void applySyntheticTempIfNoData(Integer lastKnownRaw) {
 }
 def initialize() {
     log.debug "⚙️ initialize() called"
+    diagnoseFingerprintMatch()
     configure()
 }
 def uninstalled() {
@@ -113,12 +168,13 @@ def uninstalled() {
     state.clear()
     log.debug "🚪 uninstalled() → Driver resources released"
 }
-import java.text.SimpleDateFormat
 
 def getFormattedDateTime() {
     def formatter = new SimpleDateFormat("yyyy-MM-dd HH:mm")
     return formatter.format(new Date())
 }
+
+def driverVersionAndTimeStamp() { version() + ' ' + timeStamp() }
 
 def parse(String description) { if (debugLogging) log.debug "Parsing: $description" 
                                descMap = zigbee.parseDescriptionAsMap(description)
@@ -127,7 +183,9 @@ state.lastSensorReport = getFormattedDateTime()
 
 switch(descMap.clusterInt) {
     case 0x0402:
-       log.trace "🌡 Handling Temperature Measurement cluster (0402)"
+        if (traceLogging && traceCluster == "Temperature (0402)")
+           log.trace "🌡 Handling Temperature Measurement cluster (0402)"
+        }
         def rawTemp = Integer.parseInt(descMap.value, 16)
         state.lastTempRaw = rawTemp
         processTemperature(rawTemp)
@@ -176,7 +234,8 @@ def scheduledRefresh() {
 def configure() {
     unschedule()
     runEvery15Minutes("scheduledRefresh")
-
+    state.driverVersion = driverVersionAndTimeStamp()
+ 
     def tempUnit = settings?.tempUnit ?: "Celsius"
     def tempOffsetLabel = "${settings?.tempOffset ?: 0.0}${tempUnit == 'Fahrenheit' ? '°F' : '°C'}"
     def humidityOffsetLabel = "${settings?.humidityOffset ?: 0.0}%"
