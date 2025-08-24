@@ -208,7 +208,7 @@ private void processHumidity(Integer rawHumidity, Boolean forceUpdate = false) {
     
     if (shouldUpdate) {
         state.lastHumidity = finalHumidity.toBigDecimal().setScale(2, BigDecimal.ROUND_HALF_UP)
-        sendEvent(name: "humidity", value: finalHumidity, unit: "%")
+        sendEvent(name: "humidity", value: finalHumidity.toBigDecimal().setScale(2, BigDecimal.ROUND_HALF_UP), unit: "%")
         state.humidityStatus = (finalHumidity < 40) ? "Dry" : (finalHumidity > 65) ? "Humid" : "Comfortable"
         sendEvent(name: "humidityStatus", value: state?.humidityStatus)
         
