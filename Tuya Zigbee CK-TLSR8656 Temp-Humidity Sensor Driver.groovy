@@ -150,40 +150,40 @@ def diagnoseFingerprintMatch() {
 }
 
 private void processTemperature(Integer rawTemp, Boolean forceUpdate = false) {
-    def offset = (settings?.tempOffset ?: 0)
-    def tempC = ((rawTemp / 100.0) + offset) as BigDecimal
-    def threshold = (settings?.tempChangeThreshold ?: 0.25) as BigDecimal
+    def offset = (settings?.tempOffset ?: 0).toBigDecimal().setScale(2, BigDecimal.ROUND_HALF_UP)
+    def tempC = ((rawTemp / 100.0) + offset).toBigDecimal().setScale(2, BigDecimal.ROUND_HALF_UP)
+    def threshold = (settings?.tempChangeThreshold ?: 0.25).toBigDecimal().setScale(2, BigDecimal.ROUND_HALF_UP)
     
     // Get the last temperature in Celsius for comparison
-    def lastTempC = state.lastTempCelsius as BigDecimal ?: null
+    def lastTempC = state.lastTempCelsius.toBigDecimal().setScale(2, BigDecimal.ROUND_HALF_UP) ?: null
     
     // Calculate temperature change
-    def tempChange = lastTempC ? Math.abs(tempC - lastTempC) : threshold + 1
+    def tempChange = lastTempC.toBigDecimal().setScale(2, BigDecimal.ROUND_HALF_UP) ? Math.abs(tempC - lastTempC).toBigDecimal().setScale(2, BigDecimal.ROUND_HALF_UP) : threshold + 1
     
     // Check if update should be sent
     def shouldUpdate = forceUpdate || (lastTempC == null) || (tempChange >= threshold)
     
     if (shouldUpdate) {
-        def converted = tempC
+        def converted = tempC.toBigDecimal().setScale(2, BigDecimal.ROUND_HALF_UP)
         def unit = "°C"
         if (settings?.tempUnit == "Fahrenheit") {
-            converted = (tempC * 1.8 + 32).toBigDecimal().setScale(1, BigDecimal.ROUND_HALF_UP)
+            converted = (tempC * 1.80 + 32.00).toBigDecimal().setScale(2, BigDecimal.ROUND_HALF_UP)
             unit = "°F"
         }
         
         state.tempStatus = ((tempC < 18.0) ? "Cold" : (tempC > 24.0) ? "Hot" : "Comfortable")
         state.lastTempCelsius = tempC
         
-        sendEvent(name: "temperature", value: converted, unit: unit)
+        sendEvent(name: "temperature", value: converted.toBigDecimal().setScale(2, BigDecimal.ROUND_HALF_UP), unit: unit)
         sendEvent(name: "tempUnitState", value: settings?.tempUnit ?: "Celsius")
         sendEvent(name: "tempStatus", value: state.tempStatus)
         sendEvent(name: "lastTempChange", value: getFormattedDateTime())
         
         if (settings?.traceLogging ?: false) {
-            log.trace "📏 processTemperature() → RawTemp=${rawTemp} | Offset=${offset} | Final=${converted}${unit} | Change=${tempChange}°C"
+            log.trace "📏 processTemperature() → RawTemp=${rawTemp} | Offset=${offset} | Final=${converted}${unit} | Change=${tempChange.toBigDecimal().setScale(2, BigDecimal.ROUND_HALF_UP)}°C"
         }
         if (settings?.debugLogging ?: false) {
-            log.debug "Temperature updated: ${converted}${unit} (change: ${tempChange}°C)"
+            log.debug "Temperature updated: ${converted}${unit} (change: ${tempChange.toBigDecimal().setScale(2, BigDecimal.ROUND_HALF_UP)}°C)"
         }
     } else {
         if (settings?.traceLogging ?: false) {
@@ -193,34 +193,34 @@ private void processTemperature(Integer rawTemp, Boolean forceUpdate = false) {
 }
 
 private void processHumidity(Integer rawHumidity, Boolean forceUpdate = false) {
-    def offsetHumidity = (settings?.humidityOffset ?: 0.0) as BigDecimal
-    def finalHumidity = (offsetHumidity + (rawHumidity / 100.0)) as BigDecimal
-    def threshold = (settings?.humidityChangeThreshold ?: 1.0) as BigDecimal
+    def offsetHumidity = (settings?.humidityOffset ?: 0.0).toBigDecimal().setScale(2, BigDecimal.ROUND_HALF_UP)
+    def finalHumidity = (offsetHumidity + (rawHumidity / 100.0)).toBigDecimal().setScale(2, BigDecimal.ROUND_HALF_UP)
+    def threshold = (settings?.humidityChangeThreshold ?: 1.0).toBigDecimal().setScale(2, BigDecimal.ROUND_HALF_UP)
     
     // Get the last humidity for comparison
-    def lastHumidity = state.lastHumidity as BigDecimal ?: null
+    def lastHumidity = state.lastHumidity.toBigDecimal().setScale(2, BigDecimal.ROUND_HALF_UP) ?: null
     
     // Calculate humidity change
-    def humidityChange = lastHumidity ? Math.abs(finalHumidity - lastHumidity) : threshold + 1
+    def humidityChange = lastHumidity.toBigDecimal().setScale(2, BigDecimal.ROUND_HALF_UP) ? Math.abs(finalHumidity.toBigDecimal().setScale(2, BigDecimal.ROUND_HALF_UP) - lastHumidity.toBigDecimal().setScale(2, BigDecimal.ROUND_HALF_UP)) : threshold.toBigDecimal().setScale(2, BigDecimal.ROUND_HALF_UP) + 1
     
     // Check if update should be sent
     def shouldUpdate = forceUpdate || (lastHumidity == null) || (humidityChange >= threshold)
     
     if (shouldUpdate) {
-        state.lastHumidity = finalHumidity
+        state.lastHumidity = finalHumidity.toBigDecimal().setScale(2, BigDecimal.ROUND_HALF_UP)
         sendEvent(name: "humidity", value: finalHumidity, unit: "%")
         state.humidityStatus = (finalHumidity < 40) ? "Dry" : (finalHumidity > 65) ? "Humid" : "Comfortable"
         sendEvent(name: "humidityStatus", value: state?.humidityStatus)
         
         if (settings?.traceLogging && settings?.traceCluster == "Humidity (0405)") {
-            log.trace "💧 processHumidity() → Raw=${rawHumidity} | Offset=${offsetHumidity} | Final=${finalHumidity} | Change=${humidityChange}%"
+            log.trace "💧 processHumidity() → Raw=${rawHumidity} | Offset=${offsetHumidity.toBigDecimal().setScale(2, BigDecimal.ROUND_HALF_UP)} | Final=${finalHumidity.toBigDecimal().setScale(2, BigDecimal.ROUND_HALF_UP)} | Change=${humidityChange.toBigDecimal().setScale(2, BigDecimal.ROUND_HALF_UP)}%"
         }
         if (settings?.debugLogging ?: false) {
-            log.debug "Humidity updated: ${finalHumidity}% (change: ${humidityChange}%)"
+            log.debug "Humidity updated: ${finalHumidity.toBigDecimal().setScale(2, BigDecimal.ROUND_HALF_UP)}% (change: ${humidityChange.toBigDecimal().setScale(2, BigDecimal.ROUND_HALF_UP)}%)"
         }
     } else {
         if (settings?.traceLogging ?: false) {
-            log.trace "💧 Humidity change (${humidityChange}%) below threshold (${threshold}%), skipping update"
+            log.trace "💧 Humidity change (${humidityChange.toBigDecimal().setScale(2, BigDecimal.ROUND_HALF_UP)}%) below threshold (${threshold.toBigDecimal().setScale(2, BigDecimal.ROUND_HALF_UP)}%), skipping update"
         }
     }
 }
@@ -337,10 +337,10 @@ def configure() {
     state.driverVersion = driverVersionAndTimeStamp()
  
     def tempUnit = settings?.tempUnit ?: "Celsius"
-    def tempOffsetLabel = "${settings?.tempOffset ?: 0.0}°C"
-    def humidityOffsetLabel = "${settings?.humidityOffset ?: 0.0}%"
+    def tempOffsetLabel = "${settings?.tempOffset ?: 0.00}°C"
+    def humidityOffsetLabel = "${settings?.humidityOffset ?: 0.00}%"
     def tempThresholdLabel = "${settings?.tempChangeThreshold ?: 0.25}°C"
-    def humidityThresholdLabel = "${settings?.humidityChangeThreshold ?: 1.0}%"   
+    def humidityThresholdLabel = "${settings?.humidityChangeThreshold ?: 1.00}%"   
     
     if (state?.lastTempRaw != null) {
         processTemperature(state.lastTempRaw, true)  // Force update on config change
