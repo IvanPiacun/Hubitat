@@ -1,7 +1,7 @@
 /**
  *  Tuya Zigbee Temperature/Humidity Sensor driver for Hubitat Elevation C8-PRO
  *
- *  Version 1.1.3
+ *  Version 1.1.4
  *
  *	Copyright 2025 Ivan Piacun, BAP Enterprises Ltd (NZ)
  *
@@ -60,10 +60,11 @@
  *  Version 1.1.1  2025-08-24  Renamed Driver back to general name and incorpoaredt code for humidity change threshold (1.0% default)
  *  Version 1.1.2  2025-08-25  Added humidityChangeThresholdState attribute.
  *  Version 1.1.3  2025-08-26  Fixed cluster tracing, log messages, and states.
+ *  Version 1.1.4  2025-08-26  Removed skipping of updates if change less than threshold.
 */
 import java.text.SimpleDateFormat
-static String version() { '1.1.3' }
-static String timeStamp() { '2025/08/265 12:25 PM' }
+static String version() { '1.1.4' }
+static String timeStamp() { '2025/08/265 01:45 PM' }
 
 metadata { 
     definition(name: "Tuya Zigbee Temperature/Humidity Sensor", namespace: "ivanpiacun.driver", author: "Ivan Piacun & Copilot", importUrl: 'https://raw.githubusercontent.com/IvanPiacun/Hubitat/refs/heads/main/Tuya%20Zigbee%20Temperature-Humidity%20Sensor.groovy') {
@@ -161,35 +162,26 @@ private void processTemperature(Integer rawTemp, Boolean forceUpdate = false) {
     // Calculate temperature change
     def tempChange = lastTempC.toBigDecimal().setScale(2, BigDecimal.ROUND_HALF_UP) ? Math.abs(tempC - lastTempC).toBigDecimal().setScale(2, BigDecimal.ROUND_HALF_UP) : threshold + 1
     
-    // Check if update should be sent
-    def shouldUpdate = forceUpdate || (lastTempC == null) || (tempChange >= threshold)
-    
-    if (shouldUpdate) {
-        def converted = tempC.toBigDecimal().setScale(2, BigDecimal.ROUND_HALF_UP)
-        def unit = "°C"
-        if (settings?.tempUnit == "Fahrenheit") {
-            converted = (tempC * 1.80 + 32.00).toBigDecimal().setScale(2, BigDecimal.ROUND_HALF_UP)
-            unit = "°F"
-        }
+    def converted = tempC.toBigDecimal().setScale(2, BigDecimal.ROUND_HALF_UP)
+    def unit = "°C"
+    if (settings?.tempUnit == "Fahrenheit") {
+        converted = (tempC * 1.80 + 32.00).toBigDecimal().setScale(2, BigDecimal.ROUND_HALF_UP)
+        unit = "°F"
+    }
         
-        state.tempStatus = ((tempC < 18.0) ? "Cold" : (tempC > 24.0) ? "Hot" : "Comfortable")
-        state.lastTempCelsius = tempC
+    state.tempStatus = ((tempC < 18.0) ? "Cold" : (tempC > 24.0) ? "Hot" : "Comfortable")
+    state.lastTempCelsius = tempC
         
-        sendEvent(name: "temperature", value: converted.toBigDecimal().setScale(2, BigDecimal.ROUND_HALF_UP), unit: unit)
-        sendEvent(name: "tempUnitState", value: settings?.tempUnit ?: "Celsius")
-        sendEvent(name: "tempStatus", value: state.tempStatus)
-        sendEvent(name: "lastTempChange", value: getFormattedDateTime())
+    sendEvent(name: "temperature", value: converted.toBigDecimal().setScale(2, BigDecimal.ROUND_HALF_UP), unit: unit)
+    sendEvent(name: "tempUnitState", value: settings?.tempUnit ?: "Celsius")
+    sendEvent(name: "tempStatus", value: state.tempStatus)
+    sendEvent(name: "lastTempChange", value: getFormattedDateTime())
         
-        if ((settings?.traceLogging ?: false) && settings?.traceCluster == "Temperature (0402)") {
-            log.trace "📏 processTemperature() → RawTemp=${rawTemp} | Offset=${offset} | Final=${converted}${unit} | Change=${tempChange.toBigDecimal().setScale(2, BigDecimal.ROUND_HALF_UP)}°C"
-        }
-        if (settings?.debugLogging ?: false) {
-            log.debug "Temperature updated: ${converted}${unit} (change: ${tempChange.toBigDecimal().setScale(2, BigDecimal.ROUND_HALF_UP)}°C)"
-        }
-    } else {
-        if (settings?.traceLogging ?: false) {
-            log.trace "📏 Temperature change (${tempChange}°C) below threshold (${threshold}°C), skipping update"
-        }
+    if ((settings?.traceLogging ?: false) && settings?.traceCluster == "Temperature (0402)") {
+       log.trace "📏 processTemperature() → RawTemp=${rawTemp} | Offset=${offset} | Final=${converted}${unit} | Change=${tempChange.toBigDecimal().setScale(2, BigDecimal.ROUND_HALF_UP)}°C"
+    }
+    if (settings?.debugLogging ?: false) {
+        log.debug "Temperature updated: ${converted}${unit} (change: ${tempChange.toBigDecimal().setScale(2, BigDecimal.ROUND_HALF_UP)}°C)"
     }
 }
 
@@ -205,24 +197,18 @@ private void processHumidity(Integer rawHumidity, Boolean forceUpdate = false) {
     def humidityChange = lastHumidity.toBigDecimal().setScale(2, BigDecimal.ROUND_HALF_UP) ? Math.abs(finalHumidity.toBigDecimal().setScale(2, BigDecimal.ROUND_HALF_UP) - lastHumidity.toBigDecimal().setScale(2, BigDecimal.ROUND_HALF_UP)) : threshold.toBigDecimal().setScale(2, BigDecimal.ROUND_HALF_UP) + 1
     
     // Check if update should be sent
-    def shouldUpdate = forceUpdate || (lastHumidity == null) || (humidityChange >= threshold)
+    def shouldUpdate = (forceUpdate || (lastHumidity == null))
     
-    if (shouldUpdate) {
-        state.lastHumidity = finalHumidity.toBigDecimal().setScale(2, BigDecimal.ROUND_HALF_UP)
-        sendEvent(name: "humidity", value: finalHumidity.toBigDecimal().setScale(2, BigDecimal.ROUND_HALF_UP), unit: "%")
-        state.humidityStatus = (finalHumidity < 40) ? "Dry" : (finalHumidity > 65) ? "Humid" : "Comfortable"
-        sendEvent(name: "humidityStatus", value: state?.humidityStatus)
+    state.lastHumidity = finalHumidity.toBigDecimal().setScale(2, BigDecimal.ROUND_HALF_UP)
+    sendEvent(name: "humidity", value: finalHumidity.toBigDecimal().setScale(2, BigDecimal.ROUND_HALF_UP), unit: "%")
+    state.humidityStatus = (finalHumidity < 40) ? "Dry" : (finalHumidity > 65) ? "Humid" : "Comfortable"
+    sendEvent(name: "humidityStatus", value: state?.humidityStatus)
         
-        if ((settings?.traceLogging ?: false) && settings?.traceCluster == "Humidity (0405)") {
-            log.trace "💧 processHumidity() → Raw=${rawHumidity} | Offset=${offsetHumidity.toBigDecimal().setScale(2, BigDecimal.ROUND_HALF_UP)} | Final=${finalHumidity.toBigDecimal().setScale(2, BigDecimal.ROUND_HALF_UP)} | Change=${humidityChange.toBigDecimal().setScale(2, BigDecimal.ROUND_HALF_UP)}%"
-        }
-        if (settings?.debugLogging ?: false) {
-            log.debug "Humidity updated: ${finalHumidity.toBigDecimal().setScale(2, BigDecimal.ROUND_HALF_UP)}% (change: ${humidityChange.toBigDecimal().setScale(2, BigDecimal.ROUND_HALF_UP)}%)"
-        }
-    } else {
-        if (settings?.traceLogging ?: false) {
-            log.trace "💧 Humidity change (${humidityChange.toBigDecimal().setScale(2, BigDecimal.ROUND_HALF_UP)}%) below threshold (${threshold.toBigDecimal().setScale(2, BigDecimal.ROUND_HALF_UP)}%), skipping update"
-        }
+    if ((settings?.traceLogging ?: false) && settings?.traceCluster == "Humidity (0405)") {
+       log.trace "💧 processHumidity() → Raw=${rawHumidity} | Offset=${offsetHumidity.toBigDecimal().setScale(2, BigDecimal.ROUND_HALF_UP)} | Final=${finalHumidity.toBigDecimal().setScale(2, BigDecimal.ROUND_HALF_UP)} | Change=${humidityChange.toBigDecimal().setScale(2, BigDecimal.ROUND_HALF_UP)}%"
+    }
+    if (settings?.debugLogging ?: false) {
+       log.debug "Humidity updated: ${finalHumidity.toBigDecimal().setScale(2, BigDecimal.ROUND_HALF_UP)}% (change: ${humidityChange.toBigDecimal().setScale(2, BigDecimal.ROUND_HALF_UP)}%)"
     }
 }
 
@@ -365,14 +351,14 @@ def configure() {
     
     // Temperature reporting: cluster 0x0402, attribute 0x0000
     def tempThreshold = ((settings?.tempChangeThreshold ?: 0.25) * 100) as Integer
-    cmds += zigbee.configureReporting(0x0402, 0x0000, DataType.INT16, 30, 3600, tempThreshold)
+    cmds += zigbee.configureReporting(0x0402, 0x0000, DataType.INT16, 30, 3600, tempThreshold)  // Temp every 30s-1hr, change of thresshold in °C
     
     // Humidity reporting: cluster 0x0405, attribute 0x0000  
     def humidityThreshold = ((settings?.humidityChangeThreshold ?: 1.0) * 100) as Integer
-    cmds += zigbee.configureReporting(0x0405, 0x0000, DataType.UINT16, 30, 3600, humidityThreshold)
+    cmds += zigbee.configureReporting(0x0405, 0x0000, DataType.UINT16, 30, 3600, humidityThreshold)  // Humidity every 30s-1hr, change of threshold in %
     
     // Battery reporting: cluster 0x0001, attribute 0x0021
-    cmds += zigbee.configureReporting(0x0001, 0x0021, DataType.UINT8, 3600, 21600, 1)
+    cmds += zigbee.configureReporting(0x0001, 0x0021, DataType.UINT8, 3600, 21600, 1)    // Battery every 1-6hrs, change of 1%
     
     
     if (settings?.debugLogging ?: false) {
