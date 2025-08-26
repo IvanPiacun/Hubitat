@@ -1,7 +1,7 @@
 /**
  *  Tuya Zigbee Temperature/Humidity Sensor driver for Hubitat Elevation C8-PRO
  *
- *  Version 1.1.2
+ *  Version 1.1.3
  *
  *	Copyright 2025 Ivan Piacun, BAP Enterprises Ltd (NZ)
  *
@@ -59,10 +59,11 @@
  *  Version 1.1.0  2025-08-23  Changed from 15-minute updates to threshold-based updates (0.25°C default) (Claude AI)
  *  Version 1.1.1  2025-08-24  Renamed Driver back to general name and incorpoaredt code for humidity change threshold (1.0% default)
  *  Version 1.1.2  2025-08-25  Added humidityChangeThresholdState attribute.
+ *  Version 1.1.3  2025-08-26  Fixed cluster tracing, log messages, and states.
 */
 import java.text.SimpleDateFormat
-static String version() { '1.1.2' }
-static String timeStamp() { '2025/08/25 00:10 AM' }
+static String version() { '1.1.3' }
+static String timeStamp() { '2025/08/265 12:25 PM' }
 
 metadata { 
     definition(name: "Tuya Zigbee Temperature/Humidity Sensor", namespace: "ivanpiacun.driver", author: "Ivan Piacun & Copilot", importUrl: 'https://raw.githubusercontent.com/IvanPiacun/Hubitat/refs/heads/main/Tuya%20Zigbee%20Temperature-Humidity%20Sensor.groovy') {
@@ -179,7 +180,7 @@ private void processTemperature(Integer rawTemp, Boolean forceUpdate = false) {
         sendEvent(name: "tempStatus", value: state.tempStatus)
         sendEvent(name: "lastTempChange", value: getFormattedDateTime())
         
-        if (settings?.traceLogging ?: false) {
+        if ((settings?.traceLogging ?: false) && settings?.traceCluster == "Temperature (0402)") {
             log.trace "📏 processTemperature() → RawTemp=${rawTemp} | Offset=${offset} | Final=${converted}${unit} | Change=${tempChange.toBigDecimal().setScale(2, BigDecimal.ROUND_HALF_UP)}°C"
         }
         if (settings?.debugLogging ?: false) {
@@ -212,7 +213,7 @@ private void processHumidity(Integer rawHumidity, Boolean forceUpdate = false) {
         state.humidityStatus = (finalHumidity < 40) ? "Dry" : (finalHumidity > 65) ? "Humid" : "Comfortable"
         sendEvent(name: "humidityStatus", value: state?.humidityStatus)
         
-        if (settings?.traceLogging && settings?.traceCluster == "Humidity (0405)") {
+        if ((settings?.traceLogging ?: false) && settings?.traceCluster == "Humidity (0405)") {
             log.trace "💧 processHumidity() → Raw=${rawHumidity} | Offset=${offsetHumidity.toBigDecimal().setScale(2, BigDecimal.ROUND_HALF_UP)} | Final=${finalHumidity.toBigDecimal().setScale(2, BigDecimal.ROUND_HALF_UP)} | Change=${humidityChange.toBigDecimal().setScale(2, BigDecimal.ROUND_HALF_UP)}%"
         }
         if (settings?.debugLogging ?: false) {
@@ -356,7 +357,7 @@ def configure() {
     sendEvent(name: "humidityOffsetState", value: humidityOffsetLabel)
     sendEvent(name: "tempChangeThresholdState", value: tempThresholdLabel)
     sendEvent(name: "humidityChangeThresholdState", value: humidityThresholdLabel)
-    sendEvent(name: "debugState", value: "🌡 Threshold-based updates (${tempThresholdLabel})")
+    sendEvent(name: "debugState", value: "Threshold-based updates 🌡 (${tempThresholdLabel})  💧 (${humidityThresholdLabel})")
 
     if (settings?.debugLogging ?: false) log.debug "🔧 Configuring sensor bindings and reporting..."
     
@@ -384,7 +385,7 @@ def configure() {
      if (settings?.traceLogging ?: false) {
         log.trace "🛠 configure() → Offsets: Temp=${tempOffsetLabel}, Humidity=${humidityOffsetLabel} | Humidity Threshold: ${humidityThresholdLabel} | Unit: ${tempUnit} | Threshold: ${tempThresholdLabel}"
     } else {
-        log.info "🔧 configure() complete - Updates on ${tempThresholdLabel} change"
+        log.info "🔧 configure() complete - Updates on 🌡 ${tempThresholdLabel} change 💧 ${humidityThresholdLabel} change"
     }   
     if (settings?.debugLogging ?: false) log.debug "🔧 Configure complete - sensor should now report automatically"
     return cmds
