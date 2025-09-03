@@ -1,7 +1,7 @@
 /**
  *  Tuya Zigbee Temperature/Humidity Sensor driver for Hubitat Elevation C8-PRO
  *
- *  Version 1.1.4
+ *  Version 1.1.5
  *
  *	Copyright 2025 Ivan Piacun, BAP Enterprises Ltd (NZ)
  *
@@ -61,10 +61,11 @@
  *  Version 1.1.2  2025-08-25  Added humidityChangeThresholdState attribute.
  *  Version 1.1.3  2025-08-26  Fixed cluster tracing, log messages, and states.
  *  Version 1.1.4  2025-08-26  Removed skipping of updates if change less than threshold.
+ *  Version 1.1.5  2025-09-03  Fixed Errors in handling of replacement of a device
 */
 import java.text.SimpleDateFormat
-static String version() { '1.1.4' }
-static String timeStamp() { '2025/08/265 01:45 PM' }
+static String version() { '1.1.5' }
+static String timeStamp() { '2025/09/03 05:50 PM' }
 
 metadata { 
     definition(name: "Tuya Zigbee Temperature/Humidity Sensor", namespace: "ivanpiacun.driver", author: "Ivan Piacun & Copilot", importUrl: 'https://raw.githubusercontent.com/IvanPiacun/Hubitat/refs/heads/main/Tuya%20Zigbee%20Temperature-Humidity%20Sensor.groovy') {
@@ -157,8 +158,10 @@ private void processTemperature(Integer rawTemp, Boolean forceUpdate = false) {
     def threshold = (settings?.tempChangeThreshold ?: 0.25).toBigDecimal().setScale(2, BigDecimal.ROUND_HALF_UP)
     
     // Get the last temperature in Celsius for comparison
-    def lastTempC = state.lastTempCelsius.toBigDecimal().setScale(2, BigDecimal.ROUND_HALF_UP) ?: null
-    
+    def lastTempC = tempC
+    if (state.tempCelcius != null){
+       lastTempC = state.lastTempCelsius.toBigDecimal().setScale(2, BigDecimal.ROUND_HALF_UP) 
+    }
     // Calculate temperature change
     def tempChange = lastTempC.toBigDecimal().setScale(2, BigDecimal.ROUND_HALF_UP) ? Math.abs(tempC - lastTempC).toBigDecimal().setScale(2, BigDecimal.ROUND_HALF_UP) : threshold + 1
     
@@ -191,8 +194,10 @@ private void processHumidity(Integer rawHumidity, Boolean forceUpdate = false) {
     def threshold = (settings?.humidityChangeThreshold ?: 1.0).toBigDecimal().setScale(2, BigDecimal.ROUND_HALF_UP)
     
     // Get the last humidity for comparison
-    def lastHumidity = state.lastHumidity.toBigDecimal().setScale(2, BigDecimal.ROUND_HALF_UP) ?: null
-    
+    def lastHumidity = finalHumidity
+    if (state.lastHumidity != null){
+       lastHumidity = state.lastHumidity.toBigDecimal().setScale(2, BigDecimal.ROUND_HALF_UP)
+    }
     // Calculate humidity change
     def humidityChange = lastHumidity.toBigDecimal().setScale(2, BigDecimal.ROUND_HALF_UP) ? Math.abs(finalHumidity.toBigDecimal().setScale(2, BigDecimal.ROUND_HALF_UP) - lastHumidity.toBigDecimal().setScale(2, BigDecimal.ROUND_HALF_UP)) : threshold.toBigDecimal().setScale(2, BigDecimal.ROUND_HALF_UP) + 1
     
