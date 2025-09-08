@@ -67,7 +67,7 @@
 */
 import java.text.SimpleDateFormat
 static String version() { '1.1.7' }
-static String timeStamp() { '2025/09/09 10:20 AM' }
+static String timeStamp() { '2025/09/09 10:55 AM' }
 
 metadata { 
     definition(name: "Tuya Zigbee Temperature/Humidity Sensor", namespace: "ivanpiacun.driver", author: "Ivan Piacun & Copilot", importUrl: 'https://raw.githubusercontent.com/IvanPiacun/Hubitat/refs/heads/main/Tuya%20Zigbee%20Temperature-Humidity%20Sensor.groovy') {
@@ -162,11 +162,12 @@ private void processTemperature(Integer rawTemp, Boolean forceUpdate = false) {
     // Get the last temperature in Celsius for comparison
     def lastTempC = tempC
     def oldLastTempC = tempc
-    if (state.lastTempCelcius != null){
+    if (state.lastTempCelsius != null){
        lastTempC = state.lastTempCelsius.toBigDecimal().setScale(2, BigDecimal.ROUND_HALF_UP) 
     }
     // Calculate temperature change
-    def tempChange = lastTempC.toBigDecimal().setScale(2, BigDecimal.ROUND_HALF_UP) ? Math.abs(tempC - lastTempC).toBigDecimal().setScale(2, BigDecimal.ROUND_HALF_UP) : threshold + 1
+    //def tempChange = lastTempC.toBigDecimal().setScale(2, BigDecimal.ROUND_HALF_UP) ? Math.abs(tempC - lastTempC).toBigDecimal().setScale(2, BigDecimal.ROUND_HALF_UP) : threshold + 1
+    def tempChange = Math.abs(tempC - lastTempC).toBigDecimal().setScale(2, BigDecimal.ROUND_HALF_UP)
     // Check if update should be sent
     def shouldUpdate = forceUpdate || (oldlastTempC == null) || (tempChange >= threshold)
     
@@ -179,7 +180,8 @@ private void processTemperature(Integer rawTemp, Boolean forceUpdate = false) {
       }
         
       state.tempStatus = ((tempC < 18.0) ? "Cold" : (tempC > 24.0) ? "Hot" : "Comfortable")
-        
+      state.lastTempCelsius = tempC
+       
       sendEvent(name: "temperature", value: converted.toBigDecimal().setScale(2, BigDecimal.ROUND_HALF_UP), unit: unit)
       sendEvent(name: "tempUnitState", value: settings?.tempUnit ?: "Celsius")
       sendEvent(name: "tempStatus", value: state.tempStatus)
@@ -192,8 +194,7 @@ private void processTemperature(Integer rawTemp, Boolean forceUpdate = false) {
          log.debug "Temperature updated: ${converted}${unit} (change: ${tempChange.toBigDecimal().setScale(2, BigDecimal.ROUND_HALF_UP)}°C)"
       }
     }
-    state.lastTempCelsius = tempC
-}
+ }
 
 private void processHumidity(Integer rawHumidity, Boolean forceUpdate = false) {
     def offsetHumidity = (settings?.humidityOffset ?: 0.0).toBigDecimal().setScale(2, BigDecimal.ROUND_HALF_UP)
@@ -216,7 +217,8 @@ private void processHumidity(Integer rawHumidity, Boolean forceUpdate = false) {
          sendEvent(name: "humidity", value: finalHumidity.toBigDecimal().setScale(2, BigDecimal.ROUND_HALF_UP), unit: "%")
         state.humidityStatus = (finalHumidity < 40) ? "Dry" : (finalHumidity > 65) ? "Humid" : "Comfortable"
         sendEvent(name: "humidityStatus", value: state?.humidityStatus)
-        
+        state.lastHumidity = finalHumidity.toBigDecimal().setScale(2, BigDecimal.ROUND_HALF_UP)
+       
         if ((settings?.traceLogging ?: false) && settings?.traceCluster == "Humidity (0405)") {
            log.trace "💧 processHumidity() → Raw=${rawHumidity} | Offset=${offsetHumidity.toBigDecimal().setScale(2, BigDecimal.ROUND_HALF_UP)} | Final=${finalHumidity.toBigDecimal().setScale(2, BigDecimal.ROUND_HALF_UP)} | Change=${humidityChange.toBigDecimal().setScale(2, BigDecimal.ROUND_HALF_UP)}%"
         }
@@ -224,7 +226,6 @@ private void processHumidity(Integer rawHumidity, Boolean forceUpdate = false) {
            log.debug "Humidity updated: ${finalHumidity.toBigDecimal().setScale(2, BigDecimal.ROUND_HALF_UP)}% (change: ${humidityChange.toBigDecimal().setScale(2, BigDecimal.ROUND_HALF_UP)}%)"
         }
     }
-    state.lastHumidity = finalHumidity.toBigDecimal().setScale(2, BigDecimal.ROUND_HALF_UP)
 }
 
 private void applySyntheticTempIfNoData(Integer lastKnownRaw) {
