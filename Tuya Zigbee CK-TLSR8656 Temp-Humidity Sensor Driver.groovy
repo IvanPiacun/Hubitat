@@ -1,7 +1,7 @@
 /**
  *  Tuya Zigbee Temperature/Humidity Sensor driver for Hubitat Elevation C8-PRO
  *
- *  Version 1.1.6
+ *  Version 1.1.7
  *
  *	Copyright 2025 Ivan Piacun, BAP Enterprises Ltd (NZ)
  *
@@ -63,10 +63,11 @@
  *  Version 1.1.4  2025-08-26  Removed skipping of updates if change less than threshold.
  *  Version 1.1.5  2025-09-03  Fixed Errors in handling of replacement of a device
  *  Version 1.1.6  2025-09-04  Fixed Threshold handling
+ *  Version 1.1.7  2025-09-09  Fixed saving of Last Humidity and Last Temperature.
 */
 import java.text.SimpleDateFormat
-static String version() { '1.1.6' }
-static String timeStamp() { '2025/09/04 11:45 AM' }
+static String version() { '1.1.7' }
+static String timeStamp() { '2025/09/09 10:20 AM' }
 
 metadata { 
     definition(name: "Tuya Zigbee Temperature/Humidity Sensor", namespace: "ivanpiacun.driver", author: "Ivan Piacun & Copilot", importUrl: 'https://raw.githubusercontent.com/IvanPiacun/Hubitat/refs/heads/main/Tuya%20Zigbee%20Temperature-Humidity%20Sensor.groovy') {
@@ -178,7 +179,6 @@ private void processTemperature(Integer rawTemp, Boolean forceUpdate = false) {
       }
         
       state.tempStatus = ((tempC < 18.0) ? "Cold" : (tempC > 24.0) ? "Hot" : "Comfortable")
-      state.lastTempCelsius = tempC
         
       sendEvent(name: "temperature", value: converted.toBigDecimal().setScale(2, BigDecimal.ROUND_HALF_UP), unit: unit)
       sendEvent(name: "tempUnitState", value: settings?.tempUnit ?: "Celsius")
@@ -192,6 +192,7 @@ private void processTemperature(Integer rawTemp, Boolean forceUpdate = false) {
          log.debug "Temperature updated: ${converted}${unit} (change: ${tempChange.toBigDecimal().setScale(2, BigDecimal.ROUND_HALF_UP)}°C)"
       }
     }
+    state.lastTempCelsius = tempC
 }
 
 private void processHumidity(Integer rawHumidity, Boolean forceUpdate = false) {
@@ -209,18 +210,21 @@ private void processHumidity(Integer rawHumidity, Boolean forceUpdate = false) {
     
     // Check if update should be sent
     def shouldUpdate = (forceUpdate || (lastHumidity == null)) || (humidityChange > threshold)
-    
-    state.lastHumidity = finalHumidity.toBigDecimal().setScale(2, BigDecimal.ROUND_HALF_UP)
-    sendEvent(name: "humidity", value: finalHumidity.toBigDecimal().setScale(2, BigDecimal.ROUND_HALF_UP), unit: "%")
-    state.humidityStatus = (finalHumidity < 40) ? "Dry" : (finalHumidity > 65) ? "Humid" : "Comfortable"
-    sendEvent(name: "humidityStatus", value: state?.humidityStatus)
+
+    if (shouldUpdate) {    
+
+         sendEvent(name: "humidity", value: finalHumidity.toBigDecimal().setScale(2, BigDecimal.ROUND_HALF_UP), unit: "%")
+        state.humidityStatus = (finalHumidity < 40) ? "Dry" : (finalHumidity > 65) ? "Humid" : "Comfortable"
+        sendEvent(name: "humidityStatus", value: state?.humidityStatus)
         
-    if ((settings?.traceLogging ?: false) && settings?.traceCluster == "Humidity (0405)") {
-       log.trace "💧 processHumidity() → Raw=${rawHumidity} | Offset=${offsetHumidity.toBigDecimal().setScale(2, BigDecimal.ROUND_HALF_UP)} | Final=${finalHumidity.toBigDecimal().setScale(2, BigDecimal.ROUND_HALF_UP)} | Change=${humidityChange.toBigDecimal().setScale(2, BigDecimal.ROUND_HALF_UP)}%"
+        if ((settings?.traceLogging ?: false) && settings?.traceCluster == "Humidity (0405)") {
+           log.trace "💧 processHumidity() → Raw=${rawHumidity} | Offset=${offsetHumidity.toBigDecimal().setScale(2, BigDecimal.ROUND_HALF_UP)} | Final=${finalHumidity.toBigDecimal().setScale(2, BigDecimal.ROUND_HALF_UP)} | Change=${humidityChange.toBigDecimal().setScale(2, BigDecimal.ROUND_HALF_UP)}%"
+        }
+        if (settings?.debugLogging ?: false) {
+           log.debug "Humidity updated: ${finalHumidity.toBigDecimal().setScale(2, BigDecimal.ROUND_HALF_UP)}% (change: ${humidityChange.toBigDecimal().setScale(2, BigDecimal.ROUND_HALF_UP)}%)"
+        }
     }
-    if (settings?.debugLogging ?: false) {
-       log.debug "Humidity updated: ${finalHumidity.toBigDecimal().setScale(2, BigDecimal.ROUND_HALF_UP)}% (change: ${humidityChange.toBigDecimal().setScale(2, BigDecimal.ROUND_HALF_UP)}%)"
-    }
+    state.lastHumidity = finalHumidity.toBigDecimal().setScale(2, BigDecimal.ROUND_HALF_UP)
 }
 
 private void applySyntheticTempIfNoData(Integer lastKnownRaw) {
