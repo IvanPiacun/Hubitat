@@ -1,7 +1,7 @@
 /**
  *  Tuya Zigbee Temperature/Humidity Sensor driver for Hubitat Elevation C8-PRO
  *
- *  Version 1.1.7
+ *  Version 1.1.8
  *
  *	Copyright 2025 Ivan Piacun, BAP Enterprises Ltd (NZ)
  *
@@ -64,10 +64,11 @@
  *  Version 1.1.5  2025-09-03  Fixed Errors in handling of replacement of a device
  *  Version 1.1.6  2025-09-04  Fixed Threshold handling
  *  Version 1.1.7  2025-09-09  Fixed saving of Last Humidity and Last Temperature.
+ *  Version 1.1.8  2025-10-03  Added standard logging routines.
 */
 import java.text.SimpleDateFormat
-static String version() { '1.1.7' }
-static String timeStamp() { '2025/09/09 10:55 AM' }
+static String version() { '1.1.8' }
+static String timeStamp() { '2025/10/03 10:45 AM' }
 
 metadata { 
     definition(name: "Tuya Zigbee Temperature/Humidity Sensor", namespace: "ivanpiacun.driver", author: "Ivan Piacun & Copilot", importUrl: 'https://raw.githubusercontent.com/IvanPiacun/Hubitat/refs/heads/main/Tuya%20Zigbee%20Temperature-Humidity%20Sensor.groovy') {
@@ -99,7 +100,7 @@ fingerprint profileId:"0105", endpointId:"01", inClusters:"0001,0003,0402,0405,0
 
 preferences { 
     input name: "debugLogging", type: "bool", title: "Enable debug logging?", defaultValue: true
-    input name: "traceLogging", type: "bool", title: "Enable trace logging?", defaultValue: false
+    input name: "traceLogging", type: "bool", title: "Enable trace logging?", defaultValue: true
     input name: "traceCluster", type: "enum", title: "Cluster to trace", options: ["None", "Temperature (0402)", "Humidity (0405)"], defaultValue: "None" 
     input name: "tempUnit", type: "enum", title: "Temperature Unit", options: ["Celsius", "Fahrenheit"], defaultValue: "Celsius", description: "Choose Celsius or Fahrenheit display"
     input name: "tempOffset", type: "decimal", title: "Temperature offset (°C)", defaultValue: 0.00
@@ -146,10 +147,10 @@ def diagnoseFingerprintMatch() {
     }
 
     if (match) {
-        log.trace "✅ Device matches known fingerprint: ${match.deviceJoinName} (${match.model})"
+        logTrace "✅ Device matches known fingerprint: ${match.deviceJoinName} (${match.model})"
         state.debugState = "Matched: ${match.model}"
     } else {
-        log.warn "❌ No matching fingerprint found for device → Model: ${model}, Manufacturer: ${manufacturer}, Endpoint: ${endpointId}, InClusters: ${clustersIn}"
+        logWarn "❌ No matching fingerprint found for device → Model: ${model}, Manufacturer: ${manufacturer}, Endpoint: ${endpointId}, InClusters: ${clustersIn}"
         state.debugState = "No match"
     }
 }
@@ -161,7 +162,7 @@ private void processTemperature(Integer rawTemp, Boolean forceUpdate = false) {
     
     // Get the last temperature in Celsius for comparison
     def lastTempC = tempC
-    def oldLastTempC = tempc
+    def oldLastTempC = tempC
     if (state.lastTempCelsius != null){
        lastTempC = state.lastTempCelsius.toBigDecimal().setScale(2, BigDecimal.ROUND_HALF_UP) 
     }
@@ -169,7 +170,7 @@ private void processTemperature(Integer rawTemp, Boolean forceUpdate = false) {
     //def tempChange = lastTempC.toBigDecimal().setScale(2, BigDecimal.ROUND_HALF_UP) ? Math.abs(tempC - lastTempC).toBigDecimal().setScale(2, BigDecimal.ROUND_HALF_UP) : threshold + 1
     def tempChange = Math.abs(tempC - lastTempC).toBigDecimal().setScale(2, BigDecimal.ROUND_HALF_UP)
     // Check if update should be sent
-    def shouldUpdate = forceUpdate || (oldlastTempC == null) || (tempChange >= threshold)
+    def shouldUpdate = forceUpdate || (oldLastTempC == null) || (tempChange >= threshold)
     
     if (shouldUpdate) {    
       def converted = tempC.toBigDecimal().setScale(2, BigDecimal.ROUND_HALF_UP)
@@ -187,12 +188,10 @@ private void processTemperature(Integer rawTemp, Boolean forceUpdate = false) {
       sendEvent(name: "tempStatus", value: state.tempStatus)
       sendEvent(name: "lastTempChange", value: getFormattedDateTime())
         
-      if ((settings?.traceLogging ?: false) && settings?.traceCluster == "Temperature (0402)") {
-         log.trace "📏 processTemperature() → RawTemp=${rawTemp} | Offset=${offset} | Final=${converted}${unit} | Change=${tempChange.toBigDecimal().setScale(2, BigDecimal.ROUND_HALF_UP)}°C"
+      if (settings?.traceCluster == "Temperature (0402)") {
+         logTrace "📏 processTemperature() → RawTemp=${rawTemp} | Offset=${offset} | Final=${converted}${unit} | Change=${tempChange.toBigDecimal().setScale(2, BigDecimal.ROUND_HALF_UP)}°C"
       }
-      if (settings?.debugLogging ?: false) {
-         log.debug "Temperature updated: ${converted}${unit} (change: ${tempChange.toBigDecimal().setScale(2, BigDecimal.ROUND_HALF_UP)}°C)"
-      }
+               logDebug "Temperature updated: ${converted}${unit} (change: ${tempChange.toBigDecimal().setScale(2, BigDecimal.ROUND_HALF_UP)}°C)"
     }
  }
 
@@ -219,12 +218,11 @@ private void processHumidity(Integer rawHumidity, Boolean forceUpdate = false) {
         sendEvent(name: "humidityStatus", value: state?.humidityStatus)
         state.lastHumidity = finalHumidity.toBigDecimal().setScale(2, BigDecimal.ROUND_HALF_UP)
        
-        if ((settings?.traceLogging ?: false) && settings?.traceCluster == "Humidity (0405)") {
-           log.trace "💧 processHumidity() → Raw=${rawHumidity} | Offset=${offsetHumidity.toBigDecimal().setScale(2, BigDecimal.ROUND_HALF_UP)} | Final=${finalHumidity.toBigDecimal().setScale(2, BigDecimal.ROUND_HALF_UP)} | Change=${humidityChange.toBigDecimal().setScale(2, BigDecimal.ROUND_HALF_UP)}%"
+        if (settings?.traceCluster == "Humidity (0405)") {
+           logTrace "💧 processHumidity() → Raw=${rawHumidity} | Offset=${offsetHumidity.toBigDecimal().setScale(2, BigDecimal.ROUND_HALF_UP)} | Final=${finalHumidity.toBigDecimal().setScale(2, BigDecimal.ROUND_HALF_UP)} | Change=${humidityChange.toBigDecimal().setScale(2, BigDecimal.ROUND_HALF_UP)}%"
         }
-        if (settings?.debugLogging ?: false) {
-           log.debug "Humidity updated: ${finalHumidity.toBigDecimal().setScale(2, BigDecimal.ROUND_HALF_UP)}% (change: ${humidityChange.toBigDecimal().setScale(2, BigDecimal.ROUND_HALF_UP)}%)"
-        }
+        logDebug "Humidity updated: ${finalHumidity.toBigDecimal().setScale(2, BigDecimal.ROUND_HALF_UP)}% (change: ${humidityChange.toBigDecimal().setScale(2, BigDecimal.ROUND_HALF_UP)}%)"
+
     }
 }
 
@@ -238,7 +236,7 @@ private void applySyntheticHumidityIfNoData(Integer lastKnownRaw) {
     processHumidity(lastKnownRaw, true)  // Force update on refresh
 }
 def initialize() {
-    log.debug "⚙️ initialize() called"
+    logDebug "⚙️ initialize() called"
     diagnoseFingerprintMatch()
     configure()
 }
@@ -246,7 +244,7 @@ def initialize() {
 def uninstalled() {
     unschedule()
     state.clear()
-    log.debug "🚪 uninstalled() → Driver resources released"
+    logDebug "🚪 uninstalled() → Driver resources released"
 }
 
 def getFormattedDateTime() {
@@ -257,45 +255,45 @@ def getFormattedDateTime() {
 def driverVersionAndTimeStamp() { version() + ' ' + timeStamp() }
 
 def parse(String description) { 
-    if (settings?.debugLogging ?: false) log.debug "Parsing: $description" 
+    logDebug "Parsing: $description" 
     def descMap = zigbee.parseDescriptionAsMap(description)
 
     state.lastSensorReport = getFormattedDateTime()
 
     switch(descMap.clusterInt) {
         case 0x0402:
-            if (settings?.traceLogging  ?: false && settings?.traceCluster == "Temperature (0402)") {
-               log.trace "🌡 Handling Temperature Measurement cluster (0402)"
+            if (settings?.traceCluster == "Temperature (0402)") {
+               logTrace "🌡 Handling Temperature Measurement cluster (0402)"
             }
-            def rawTemp = Integer.parseInt(descMap?.value ?: 0, 16)
+            def rawTemp = Integer.parseInt(descMap?.value ?: "0", 16)
             state.lastTempRaw = rawTemp
             processTemperature(rawTemp)
             break
             
         case 0x0405:
-            if (settings?.traceLogging  ?: false && settings?.traceCluster == "Humidity (0405)") {
-               log.trace "💧 Handling Humidity Measurement cluster (0405)"
+            if (settings?.traceCluster == "Humidity (0405)") {
+               logTrace "💧 Handling Humidity Measurement cluster (0405)"
             }
-            def rawHumidity = Integer.parseInt(descMap?.value ?: 0, 16)
+            def rawHumidity = Integer.parseInt(descMap?.value ?: "0", 16)
             state.lastHumidityRaw = rawHumidity
             processHumidity(rawHumidity)
             break
 
         case 0x0001:
             if (descMap.attrInt == 0x0021) {
-                def rawBattery = Integer.parseInt(descMap?.value ?: 0, 16)
+                def rawBattery = Integer.parseInt(descMap?.value ?: "0", 16)
                 def battery = (rawBattery / 2).toInteger()
                 sendEvent(name: "battery", value: battery, unit: "%")
-                if (settings?.debugLogging ?: false) log.debug "Battery raw=${rawBattery}, final=${battery}%"
+                logDebug "Battery raw=${rawBattery}, final=${battery}%"
             } else if (descMap.attrInt == 0x0020) {
-                def voltage = Integer.parseInt(descMap?.value ?: 0, 16) / 10.0
+                def voltage = Integer.parseInt(descMap?.value ?: "0", 16) / 10.0
                 sendEvent(name: "voltage", value: voltage, unit: "V")
-                if (settings?.debugLogging ?: false) log.debug "Voltage=${voltage}V"
+                logDebug "Voltage=${voltage}V"
             }
             break
 
         default:
-            if (settings?.debugLogging ?: false) log.debug "Unhandled cluster: ${descMap.clusterInt}"
+            logDebug "Unhandled cluster: ${descMap.clusterInt}"
             break
     }
 }
@@ -303,7 +301,7 @@ def parse(String description) {
 def refresh() {  
     applySyntheticTempIfNoData(state?.lastTempRaw)
     applySyntheticHumidityIfNoData(state?.lastHumidityRaw)
-    if (settings?.debugLogging ?: false) log.debug "🔄 Refresh requested..."
+    logDebug "🔄 Refresh requested..."
     state.lastSensorReport = getFormattedDateTime() 
     return [ 
         zigbee.readAttribute(0x0402, 0x0000), 
@@ -316,12 +314,12 @@ def refresh() {
 // Note: scheduledRefresh() definition is still required to be able to unschedule an existing occurance for a previous
 // version that was installed on the Hubitat.
 def scheduledRefresh() {
-    if (settings?.traceLogging ?: false) log.trace "🔄 scheduledRefresh() triggered"
+    logTrace "🔄 scheduledRefresh() triggered"
     refresh()
 }
 
 def forceUpdate() {
-    log.info "⚡ Force update requested - bypassing thresholds"
+    logInfo "⚡ Force update requested - bypassing thresholds"
     if (state?.lastTempRaw != null) {
         processTemperature(state.lastTempRaw, true)
     }
@@ -347,12 +345,12 @@ def configure() {
     
     if (state?.lastTempRaw != null) {
         processTemperature(state.lastTempRaw, true)  // Force update on config change
-        log.info "🔁 Re-sent temp reading after configuration update"
+        logInfo "🔁 Re-sent temp reading after configuration update"
     }
  
     if (state?.lastHumidityRaw != null) {
         processHumidity(state.lastHumidityRaw, true)  // Force update on config change
-        log.info "🔁 Re-sent humidity reading after configuration update"
+        logInfo "🔁 Re-sent humidity reading after configuration update"
     }
     sendEvent(name: "tempUnitState", value: tempUnit)
     sendEvent(name: "tempOffsetState", value: tempOffsetLabel)
@@ -361,7 +359,7 @@ def configure() {
     sendEvent(name: "humidityChangeThresholdState", value: humidityThresholdLabel)
     sendEvent(name: "debugState", value: "Threshold-based updates 🌡 (${tempThresholdLabel})  💧 (${humidityThresholdLabel})")
 
-    if (settings?.debugLogging ?: false) log.debug "🔧 Configuring sensor bindings and reporting..."
+    logDebug "🔧 Configuring sensor bindings and reporting..."
     
     def cmds = []
     
@@ -377,19 +375,17 @@ def configure() {
     cmds += zigbee.configureReporting(0x0001, 0x0021, DataType.UINT8, 3600, 21600, 1)    // Battery every 1-6hrs, change of 1%
     
     
-    if (settings?.debugLogging ?: false) {
-        log.debug "🔧 Configure complete - sending ${cmds.size()} commands"
-    }
+    logDebug "🔧 Configure complete - sending ${cmds.size()} commands"
 
     // Removed the automatic refresh since sensor sleeps
     // runEvery15Minutes("scheduledRefresh")  // Comment this out
     
      if (settings?.traceLogging ?: false) {
-        log.trace "🛠 configure() → Offsets: Temp=${tempOffsetLabel}, Humidity=${humidityOffsetLabel} | Humidity Threshold: ${humidityThresholdLabel} | Unit: ${tempUnit} | Threshold: ${tempThresholdLabel}"
+        logTrace "🛠 configure() → Offsets: Temp=${tempOffsetLabel}, Humidity=${humidityOffsetLabel} | Humidity Threshold: ${humidityThresholdLabel} | Unit: ${tempUnit} | Threshold: ${tempThresholdLabel}"
     } else {
-        log.info "🔧 configure() complete - Updates on 🌡 ${tempThresholdLabel} change 💧 ${humidityThresholdLabel} change"
+        logInfo "🔧 configure() complete - Updates on 🌡 ${tempThresholdLabel} change 💧 ${humidityThresholdLabel} change"
     }   
-    if (settings?.debugLogging ?: false) log.debug "🔧 Configure complete - sensor should now report automatically"
+    logDebug "🔧 Configure complete - sensor should now report automatically"
     return cmds
 }
 def installed() { 
@@ -408,12 +404,12 @@ def updated() {
 }
 
 def checkBattery() {
-    if (settings?.debugLogging ?: false) log.debug "🔋 Checking battery status"
+    logDebug "🔋 Checking battery status"
     return zigbee.readAttribute(0x0001, 0x0021)
 }
 
 def logsOff() { 
-    log.warn "Debug logging disabled." 
+    logWarn "Debug logging disabled." 
     device.updateSetting("debugLogging", [value:"false", type:"bool"]) 
     sendEvent(name: "debugState", value: "OFF") 
 }
@@ -424,8 +420,32 @@ def checkForTimeout() {
     def last = state.lastSensorReport ?: 0 
     def elapsed = (now() - last) / 1000 
     if (elapsed > timeoutSeconds()) { 
-        log.warn "⚠️ No sensor data received in last ${(elapsed/60).toInteger()} minutes. Check Zigbee link or sensor battery." 
+        logWarn "⚠️ No sensor data received in last ${(elapsed/60).toInteger()} minutes. Check Zigbee link or sensor battery." 
     } else { 
-        if (settings?.debugLogging ?: false) log.debug "✅ Sensor data received within timeout (${(elapsed/60).toInteger()} minutes ago)" 
+        logDebug "✅ Sensor data received within timeout (${(elapsed/60).toInteger()} minutes ago)" 
     } 
+}
+
+void logDebug(String msg) {
+    if (settings?.debugLogging ?: false) {
+        log.debug "${device.displayName} " + msg
+    }
+}
+
+void logInfo(String msg) {
+    if (settings?.debugLogging ?: false) {
+        log.info "${device.displayName} " + msg
+    }
+}
+
+void logWarn(String msg) {
+    if (settings?.debugLogging ?: false) {
+        log.warn "${device.displayName} " + msg
+    }
+}
+
+void logTrace(String msg) {
+    if (settings?.traceLogging ?: false) {
+        log.trace "${device.displayName} " + msg
+    }
 }
