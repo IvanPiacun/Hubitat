@@ -1,7 +1,7 @@
 /**
  *  Tuya Zigbee Temperature/Humidity Sensor driver for Hubitat Elevation C8-PRO
  *
- *  Version 1.1.8
+ *  Version 1.1.9
  *
  *	Copyright 2025 Ivan Piacun, BAP Enterprises Ltd (NZ)
  *
@@ -65,10 +65,11 @@
  *  Version 1.1.6  2025-09-04  Fixed Threshold handling
  *  Version 1.1.7  2025-09-09  Fixed saving of Last Humidity and Last Temperature.
  *  Version 1.1.8  2025-10-03  Added standard logging routines.
+ *  Version 1.1.9  2026-02-18  Supported negative rawTemp.
 */
 import java.text.SimpleDateFormat
-static String version() { '1.1.8' }
-static String timeStamp() { '2025/10/03 10:45 AM' }
+static String version() { '1.1.9' }
+static String timeStamp() { '2026/02/18 4:10 PM' }
 
 metadata { 
     definition(name: "Tuya Zigbee Temperature/Humidity Sensor", namespace: "ivanpiacun.driver", author: "Ivan Piacun & Copilot", importUrl: 'https://raw.githubusercontent.com/IvanPiacun/Hubitat/refs/heads/main/Tuya%20Zigbee%20Temperature-Humidity%20Sensor.groovy') {
@@ -266,6 +267,8 @@ def parse(String description) {
                logTrace "🌡 Handling Temperature Measurement cluster (0402)"
             }
             def rawTemp = Integer.parseInt(descMap?.value ?: "0", 16)
+            // Fix: convert unsigned 16-bit to signed 16-bit (two's complement)
+            if (rawTemp > 32767) rawTemp -= 65536
             state.lastTempRaw = rawTemp
             processTemperature(rawTemp)
             break
