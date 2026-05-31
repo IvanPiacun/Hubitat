@@ -1,5 +1,5 @@
 # Hubitat
-# This Project contains Device Drivers for the Hubitat Elevation C8-Pro crated by Ivan Piacun.
+# This Project contains Device Drivers for the Hubitat Elevation C8-Pro created by Ivan Piacun.
 
 If you like the drivers I've created and you would like to make a donation, please make a paypal payment to ivan.piacun@outlook.com
 
